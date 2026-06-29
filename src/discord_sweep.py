@@ -88,7 +88,7 @@ def run_sweep(activity, guild_id):
     session_key = f"__sweep__{guild_id}"
     session_id = b.get_session(session_key)
     instruction = (
-        "You are Mochi_Bot doing your scheduled hourly review of this Discord "
+        "You are Lingfei 的专属 bot doing your scheduled hourly review of this Discord "
         "server. Below is the NEW activity in it since your last review.\n"
         "Stay within this server and your working directory; the toolbox is "
         "scoped to this server. Never reference, reveal, or act on anything "
@@ -144,12 +144,12 @@ def triage(activity, guild_id):
     True) so we never silently skip something."""
     instruction = (
         "You are a cheap FIRST-PASS filter deciding whether to wake the full "
-        "reviewer for Mochi_Bot. Below is a server's recent activity.\n"
+        "reviewer for the bot. Below is a server's recent activity.\n"
         "Answer NO only when it's clearly just people talking among themselves / "
-        "coordinating with each other and there's plainly nothing for Mochi to do. "
-        "Answer YES if anything might need Mochi to reply or act — an open "
-        "question or request Mochi could help with, a task, a problem — OR if "
-        "you're at all unsure. (Direct @-mentions of Mochi are handled elsewhere; "
+        "coordinating with each other and there's plainly nothing for the bot to do. "
+        "Answer YES if anything might need the bot to reply or act — an open "
+        "question or request the bot could help with, a task, a problem — OR if "
+        "you're at all unsure. (Direct @-mentions of the bot are handled elsewhere; "
         "don't count those, but err toward YES on anything borderline — the full "
         "reviewer makes the final call and will stay silent if not needed.)\n"
         "Answer on the FIRST line with exactly YES or NO, then a short reason.\n\n"

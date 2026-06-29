@@ -112,6 +112,10 @@ TIMEOUT_SECONDS = int(os.environ.get("CLAUDE_TIMEOUT_SECONDS", "240"))
 # Per-channel "last seen message id" cursors, so each channel is tracked
 # independently. Replaces the old single-channel .claude_bridge_seen file.
 CURSORS_FILE = os.path.join(WORKSPACE, ".bridge_cursors.json")
+# Channel whitelist: when non-empty, the bot ONLY responds to @mentions in these
+# channels. Empty (default) = respond everywhere (existing behaviour). Bot admins
+# manage this at runtime via /whitelist commands; changes take effect immediately.
+CHANNEL_WHITELIST_FILE = os.path.join(WORKSPACE, ".channel_whitelist.json")
 # Per-server isolated working dirs: each guild gets its own scratch/clones,
 # session store (CLAUDE_CONFIG_DIR) and TMPDIR under here, so files written while
 # serving one server are not in another server's working directory.
@@ -145,7 +149,7 @@ LIMITED_FILE = os.path.join(WORKSPACE, ".limited_until")
 DEFERRED_DIR = os.path.join(WORKSPACE, ".deferred")
 LIMIT_DEFAULT_COOLDOWN = int(os.environ.get("LIMIT_DEFAULT_COOLDOWN", "3600"))
 HELP_TEXT = (
-    "**Mochi_Bot** — @ 我即可。我能:\n"
+    "**Lingfei 的专属 bot** — @ 我即可。我能:\n"
     "• 读/写本服务器任意频道和 forum thread\n"
     "• 跑命令、读改自己的代码(热重载)、`ssh fin-agent`、查 DB/pipeline\n"
     "• 看你贴的图片/文件(截图报错也行)\n"
@@ -278,6 +282,27 @@ def save_cursors(cursors):
     with open(tmp, "w") as f:
         json.dump(cursors, f)
     os.replace(tmp, CURSORS_FILE)
+
+
+def load_channel_whitelist():
+    """Returns the set of whitelisted channel ids, or empty set (= no restriction)."""
+    try:
+        with open(CHANNEL_WHITELIST_FILE) as f:
+            data = json.load(f)
+        if isinstance(data, list):
+            return {str(x) for x in data if x}
+    except FileNotFoundError:
+        pass
+    except Exception as exc:
+        print(f"[bridge] whitelist read error: {exc}", flush=True)
+    return set()
+
+
+def save_channel_whitelist(ids):
+    tmp = CHANNEL_WHITELIST_FILE + ".tmp"
+    with open(tmp, "w") as f:
+        json.dump(sorted(ids), f)
+    os.replace(tmp, CHANNEL_WHITELIST_FILE)
 
 
 _guilds_cache = {"ids": None, "ts": 0.0}
@@ -1381,7 +1406,7 @@ def run_claude(author, channel_id, prompt, history="", guild_id=None):
         else ""
     )
     instruction = (
-        "You are Mochi_Bot replying to a Discord message in this server. Your "
+        "You are Lingfei 的专属 bot replying to a Discord message in this server. Your "
         "context, capabilities, and the /app/src/discord_api.py toolbox are in "
         "CLAUDE.md (already loaded).\n"
         "Treat this as the ONLY Discord server you serve. Stay within this "
@@ -1491,7 +1516,11 @@ def handle_message(channel_id, msg):
     if ALLOWED_USER_IDS and author_id not in ALLOWED_USER_IDS:
         return
     content = msg.get("content", "") or ""
-    if not is_addressed(content):
+    _wl = load_channel_whitelist()
+    _in_whitelist = bool(_wl) and str(channel_id) in _wl
+    # Whitelist channels: respond to all messages (no @mention needed).
+    # Non-whitelist channels: require @mention as before.
+    if not _in_whitelist and not is_addressed(content):
         return
     if not claim_message(msg["id"]):
         return  # already handled by the other path (poller/gateway)
@@ -1563,6 +1592,44 @@ def handle_message(channel_id, msg):
         return
     if low in ("/status", "status"):
         post_reply(channel_id, build_status(guild_id), mention_user_id=reply_mention)
+        return
+    # Whitelist management commands.
+    if low == "/whitelist" or low.startswith("/whitelist "):
+        wl = load_channel_whitelist()
+        parts = prompt.strip().split(None, 2)
+        sub = parts[1].lower() if len(parts) > 1 else "show"
+        arg = parts[2].strip() if len(parts) > 2 else ""
+        if sub == "show":
+            if wl:
+                lines = "\n".join(f"• <#{c}> ({c})" for c in sorted(wl))
+                msg = f"**频道白名单** ({len(wl)} 个):\n{lines}"
+            else:
+                msg = "**频道白名单**:空 — 所有频道都响应 @mention。"
+        elif sub == "add" and arg:
+            cid_arg = arg.strip("<>#").split(">")[0].split("|")[-1]
+            wl.add(cid_arg)
+            save_channel_whitelist(wl)
+            msg = f"✅ 已加入白名单: <#{cid_arg}> ({cid_arg})。当前共 {len(wl)} 个频道。"
+        elif sub == "remove" and arg:
+            cid_arg = arg.strip("<>#").split(">")[0].split("|")[-1]
+            if cid_arg in wl:
+                wl.discard(cid_arg)
+                save_channel_whitelist(wl)
+                msg = f"✅ 已从白名单移除: <#{cid_arg}>。剩余 {len(wl)} 个频道。"
+            else:
+                msg = f"⚠️ <#{cid_arg}> 不在白名单里。"
+        elif sub == "clear":
+            save_channel_whitelist(set())
+            msg = "✅ 白名单已清空 — 所有频道恢复响应。"
+        else:
+            msg = (
+                "用法:\n"
+                "• `/whitelist show` — 查看当前白名单\n"
+                "• `/whitelist add <channel_id>` — 添加频道\n"
+                "• `/whitelist remove <channel_id>` — 移除频道\n"
+                "• `/whitelist clear` — 清空白名单(恢复全频道响应)"
+            )
+        post_reply(channel_id, msg, mention_user_id=reply_mention)
         return
     # Pull in any attached images/files so Claude can read them.
     try:
