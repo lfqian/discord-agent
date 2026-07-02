@@ -8,7 +8,7 @@ named **tmux** session: the session keeps running after this `claude -p` exits,
 and a later invocation can list it, read its output, send it input, or reap it.
 
 State for each sub-agent lives in `/workspace/subagents/<name>.json` (survives
-container restarts), so a fresh Mochi run can rediscover what's running and why.
+container restarts), so a fresh CowBot run can rediscover what's running and why.
 
 Usage:
   subagent.py spawn <name> <command...>   # start a detached tmux session

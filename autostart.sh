@@ -1,5 +1,5 @@
 #!/bin/sh
-# Bring Mochi_Bot's container back at login / after a host reboot.
+# Bring CowBot's container back at login / after a host reboot.
 # Apple `container` has no restart policy, so without this the bot stays down
 # after a reboot. Prefer `container start` (keeps the writable layer = anything
 # the agent `sudo apt install`'d); fall back to a fresh create.

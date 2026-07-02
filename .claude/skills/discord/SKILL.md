@@ -1,11 +1,11 @@
 ---
 name: discord
-description: Read from and act on any Discord channel or thread in Mochi_Bot's guild — read messages, post/reply, react, edit, pin, list channels/threads, and create forum posts. Use whenever a request involves looking at or sending to Discord, especially another channel/thread (e.g. "reply to the @ in omega"), forums, reactions, or pins.
+description: Read from and act on any Discord channel or thread in CowBot's guild — read messages, post/reply, react, edit, pin, list channels/threads, and create forum posts. Use whenever a request involves looking at or sending to Discord, especially another channel/thread (e.g. "reply to the @ in omega"), forums, reactions, or pins.
 ---
 
 # Discord operations
 
-Mochi_Bot acts over the Discord REST API with its bot token (`$DISCORD_BOT_TOKEN`).
+CowBot acts over the Discord REST API with its bot token (`$DISCORD_BOT_TOKEN`).
 All operations go through one CLI: **`/app/src/discord_api.py`**. Channel ids and
 thread ids are interchangeable (a thread is just a channel).
 

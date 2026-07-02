@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Mochi_Bot live monitor — a multi-panel terminal dashboard.
+"""CowBot live monitor — a multi-panel terminal dashboard.
 
 Run inside the container (reads /workspace telemetry only — no hooks into the
 bot, so it can't break anything):
@@ -177,7 +177,7 @@ def overview(runs):
               f"rate-limit: {lim_s}    deferred: {deferred}")
     t.add_row(f"sessions: {sessions}    watched: {watched} ch",
               f"today: {len(today)} runs    [bold]${spent:.2f}[/]")
-    return Panel(t, title="🍡 Mochi_Bot", subtitle=time.strftime("%H:%M:%S"),
+    return Panel(t, title="🍡 CowBot", subtitle=time.strftime("%H:%M:%S"),
                  border_style="cyan", padding=(0, 1))
 
 
@@ -308,9 +308,11 @@ def resume_session(entry):
         print(f"\n⚠️  couldn't resolve a server for #{cname}."); time.sleep(2); return
     if _channel_busy(ch):
         print(f"\n⚠️  #{cname} is busy (an agent is running) — try again when idle."); time.sleep(2); return
-    sd = os.path.join(SERVERS_DIR, gid)
+    sd = os.path.join(SERVERS_DIR, gid, "channels", str(ch))
+    os.makedirs(os.path.join(sd, ".claude"), exist_ok=True)
+    os.makedirs(os.path.join(sd, "tmp"), exist_ok=True)
     env = dict(os.environ, CLAUDE_CONFIG_DIR=os.path.join(sd, ".claude"),
-               MOCHI_CURRENT_GUILD=gid, MOCHI_SERVER_DIR=sd, TMPDIR=os.path.join(sd, "tmp"))
+               AGENT_CURRENT_GUILD=gid, AGENT_SERVER_DIR=sd, TMPDIR=os.path.join(sd, "tmp"))
     cmd = [CLAUDE_BIN, "--resume", sid]
     if CLAUDE_MODEL:
         cmd += ["--model", CLAUDE_MODEL]

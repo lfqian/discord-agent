@@ -1,4 +1,4 @@
-"""Mochi_Bot's Discord toolbox — one CLI over the Discord REST API.
+"""CowBot's Discord toolbox — one CLI over the Discord REST API.
 
 Auth: reads $DISCORD_BOT_TOKEN (falls back to the .env in cwd / workspace).
 Everything is scoped to what the bot's token can do in its guild.
@@ -51,10 +51,10 @@ def _req(method, path, **kw):
 
 
 def _guilds():
-    # During message handling the bridge sets MOCHI_CURRENT_GUILD so the toolbox
+    # During message handling the bridge sets AGENT_CURRENT_GUILD so the toolbox
     # is scoped to ONLY the current server (server isolation — never expose other
     # servers' channels/threads here).
-    current = os.environ.get("MOCHI_CURRENT_GUILD", "").strip()
+    current = os.environ.get("AGENT_CURRENT_GUILD", "").strip()
     if current:
         return [(current, None)]
     if GUILDS:
@@ -140,7 +140,7 @@ def forum_post(a):
 
 
 def main():
-    p = argparse.ArgumentParser(description="Mochi_Bot Discord toolbox")
+    p = argparse.ArgumentParser(description="CowBot Discord toolbox")
     sub = p.add_subparsers(dest="cmd", required=True)
 
     sub.add_parser("whoami").set_defaults(fn=whoami)

@@ -1,4 +1,4 @@
-# Deploying Mochi_Bot
+# Deploying CowBot
 
 A self-hosted Discord agent that bridges @-mentions to the Claude Code CLI,
 running headless inside a hardened container. This is the **authoritative,
@@ -121,18 +121,18 @@ Apple `container` has no restart policy, so install a LaunchAgent that runs
 `autostart.sh` at login (it does `container start`, preserving the writable layer,
 or a fresh `run-container.sh` if the container is gone):
 ```bash
-cat > ~/Library/LaunchAgents/com.mochi.discord-agent.plist <<PLIST
+cat > ~/Library/LaunchAgents/com.cowbot.discord-agent.plist <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
-  <key>Label</key><string>com.mochi.discord-agent</string>
+  <key>Label</key><string>com.cowbot.discord-agent</string>
   <key>ProgramArguments</key><array><string>$(pwd)/autostart.sh</string></array>
   <key>RunAtLoad</key><true/>
   <key>StandardOutPath</key><string>$HOME/discordAgentWorkspace/autostart.out.log</string>
   <key>StandardErrorPath</key><string>$HOME/discordAgentWorkspace/autostart.err.log</string>
 </dict></plist>
 PLIST
-launchctl load -w ~/Library/LaunchAgents/com.mochi.discord-agent.plist
+launchctl load -w ~/Library/LaunchAgents/com.cowbot.discord-agent.plist
 ```
 
 ---

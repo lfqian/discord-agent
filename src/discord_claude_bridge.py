@@ -116,6 +116,22 @@ CURSORS_FILE = os.path.join(WORKSPACE, ".bridge_cursors.json")
 # channels. Empty (default) = respond everywhere (existing behaviour). Bot admins
 # manage this at runtime via /whitelist commands; changes take effect immediately.
 CHANNEL_WHITELIST_FILE = os.path.join(WORKSPACE, ".channel_whitelist.json")
+# Channel links: data-driven cross-channel connection (edit the JSON, no code or
+# prompt changes). Maps a channel id -> a target working context so the channel
+# SHARES that context's dir (memory + session), and optionally pulls recent
+# messages from `watch` channels into its context. Format:
+#   { "<channel_id>": {"guild": "<gid>", "channel": "<cid or omit for guild-level>",
+#                       "watch": ["<cid>", ...]} }
+CHANNEL_LINKS_FILE = os.path.join(WORKSPACE, ".channel_links.json")
+
+
+def _channel_links():
+    """Load the channel-link map; {} if missing/invalid (feature off by default)."""
+    try:
+        with open(CHANNEL_LINKS_FILE) as f:
+            return json.load(f) or {}
+    except Exception:
+        return {}
 # Per-server isolated working dirs: each guild gets its own scratch/clones,
 # session store (CLAUDE_CONFIG_DIR) and TMPDIR under here, so files written while
 # serving one server are not in another server's working directory.
@@ -755,7 +771,43 @@ def fetch_recent(channel_id, before_id):
             return ""
 
 
+def _recent_lines(channel_id, limit=12):
+    """Last `limit` messages of any channel as plain lines (for linked `watch`)."""
+    try:
+        with httpx.Client(timeout=20, headers=HEADERS) as client:
+            r = client.get(
+                f"https://discord.com/api/v10/channels/{channel_id}/messages",
+                params={"limit": limit},
+            )
+        if r.status_code != 200:
+            return ""
+        return "\n".join(filter(None, (_msg_line(m) for m in reversed(r.json()))))
+    except Exception:
+        return ""
+
+
+def _watched_context(channel_id):
+    """Recent messages from channels this channel is linked to `watch`, so the bot
+    automatically SEES the connected channel — no prompt hardcoding, data-driven."""
+    link = _channel_links().get(str(channel_id))
+    if not link:
+        return ""
+    parts = []
+    for w in link.get("watch", []):
+        lines = _recent_lines(str(w))
+        if lines:
+            parts.append(f"--- recent messages in linked channel {w} ---\n{lines}")
+    return "\n\n".join(parts)
+
+
 def build_context(channel_id, before_id):
+    """This channel's own context, plus any linked `watch` channels' recent msgs."""
+    own = _own_context(channel_id, before_id)
+    watched = _watched_context(channel_id)
+    return "\n\n".join(p for p in (watched, own) if p)
+
+
+def _own_context(channel_id, before_id):
     """Context to feed the model. With a live session + a known watermark, inject
     ONLY the messages that arrived since the bot's last turn — the gap the session
     doesn't already have — so nothing is missed and nothing is re-fed. Otherwise
@@ -827,7 +879,7 @@ def post(channel_id, content, mention_user_id=None):
     # the text (any <@id> / <@!id> the model wrote), plus the reply target. We
     # don't use {"parse": ["users"]} blanket because that would also let stray
     # ids in quoted/example text ping people; whitelisting only ids we see in
-    # our own content keeps it deliberate while still letting Mochi @ others.
+    # our own content keeps it deliberate while still letting CowBot @ others.
     ids = set(re.findall(r"<@!?(\d+)>", content))
     if mention_user_id:
         ids.add(str(mention_user_id))
@@ -1249,7 +1301,7 @@ def drain_deferred():
         except Exception as exc:
             reply = f"Bridge error: {exc}"
         # Don't @ a bot author on resume either (avoid re-triggering the loop); the
-        # reply itself can mention a specific bot if Mochi decides it's needed.
+        # reply itself can mention a specific bot if CowBot decides it's needed.
         mention = None if latest.get("is_bot") else latest.get("author_id")
         try:
             post_reply(ch, reply, mention_user_id=mention)
@@ -1281,6 +1333,35 @@ def ensure_server_dir(guild_id):
     except OSError:
         pass
     return base
+
+
+def ensure_channel_dir(guild_id, channel_id):
+    """Per-CHANNEL private working dir: servers/<guild>/channels/<channel>/. Each
+    channel's claude runs here (cwd + CLAUDE_CONFIG_DIR) so different channels in the
+    SAME server keep SEPARATE memory/sessions. Falls back to the server dir when
+    channel_id is missing (e.g. DMs). CLAUDE.md symlinked in so it still loads.
+
+    Config-driven link: if channel_id is in `.channel_links.json`, redirect to the
+    target context's dir so the linked channel SHARES memory + session with it
+    (target may be another server's channel, or a whole guild if "channel" omitted)."""
+    link = _channel_links().get(str(channel_id)) if channel_id else None
+    if link:
+        guild_id = link.get("guild") or guild_id
+        channel_id = link.get("channel")  # None -> guild-level target (server dir)
+    base = ensure_server_dir(guild_id)
+    if not channel_id:
+        return base
+    cbase = os.path.join(base, "channels", str(channel_id))
+    for d in (cbase, os.path.join(cbase, ".claude"), os.path.join(cbase, "tmp")):
+        os.makedirs(d, exist_ok=True)
+    link = os.path.join(cbase, "CLAUDE.md")
+    src = os.path.join(os.path.dirname(ROOT), "CLAUDE.md")
+    try:
+        if not os.path.lexists(link):
+            os.symlink(src, link)
+    except OSError:
+        pass
+    return cbase
 
 
 _run_lock = threading.Lock()
@@ -1440,13 +1521,14 @@ def run_claude(author, channel_id, prompt, history="", guild_id=None):
         base.extend(["--model", CLAUDE_MODEL])
     if CLAUDE_EFFORT:
         base.extend(["--effort", CLAUDE_EFFORT])
-    # Per-server isolation: run in this server's private dir (cwd), with its own
-    # session store + TMPDIR, and scope the toolbox to this server only.
-    server_dir = ensure_server_dir(guild_id)
+    # Per-CHANNEL isolation: run in this channel's private dir (cwd), with its own
+    # memory/session store + TMPDIR, so different channels in the same server do
+    # NOT share memory. (var kept as server_dir downstream; it is now the channel dir.)
+    server_dir = ensure_channel_dir(guild_id, channel_id)
     sub_env = dict(
         os.environ,
-        MOCHI_CURRENT_GUILD=str(guild_id or ""),
-        MOCHI_SERVER_DIR=server_dir,
+        AGENT_CURRENT_GUILD=str(guild_id or ""),
+        AGENT_SERVER_DIR=server_dir,
         CLAUDE_CONFIG_DIR=os.path.join(server_dir, ".claude"),
         TMPDIR=os.path.join(server_dir, "tmp"),
     )

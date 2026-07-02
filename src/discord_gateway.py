@@ -77,7 +77,7 @@ def identify_payload():
         "d": {
             "token": TOKEN,
             "intents": INTENTS,
-            "properties": {"os": "linux", "browser": "mochi", "device": "mochi"},
+            "properties": {"os": "linux", "browser": "cowbot", "device": "cowbot"},
             "presence": {
                 "status": STATUS,
                 "since": 0,

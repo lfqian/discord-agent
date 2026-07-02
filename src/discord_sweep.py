@@ -2,7 +2,7 @@
 
 Gathers new activity since the last sweep and reviews EACH server separately:
 its own Claude session (`__sweep__<guild_id>`), its own toolbox scope
-(MOCHI_CURRENT_GUILD), and it only ever acts within that server. No server's
+(AGENT_CURRENT_GUILD), and it only ever acts within that server. No server's
 activity is ever mixed with, or surfaced in, another. Triggered by
 discord_agent_runtime on a timer.
 
@@ -104,8 +104,8 @@ def run_sweep(activity, guild_id):
     server_dir = b.ensure_server_dir(guild_id)
     sub_env = dict(
         os.environ,
-        MOCHI_CURRENT_GUILD=str(guild_id),
-        MOCHI_SERVER_DIR=server_dir,
+        AGENT_CURRENT_GUILD=str(guild_id),
+        AGENT_SERVER_DIR=server_dir,
         CLAUDE_CONFIG_DIR=os.path.join(server_dir, ".claude"),
         TMPDIR=os.path.join(server_dir, "tmp"),
     )
@@ -140,7 +140,7 @@ def run_sweep(activity, guild_id):
 
 def triage(activity, guild_id):
     """Cheap first pass (small model, no tools): does anything here actually need
-    Mochi to reply/act? Returns True only if so. On any error, escalate (return
+    CowBot to reply/act? Returns True only if so. On any error, escalate (return
     True) so we never silently skip something."""
     instruction = (
         "You are a cheap FIRST-PASS filter deciding whether to wake the full "
@@ -156,7 +156,7 @@ def triage(activity, guild_id):
         f"NEW ACTIVITY:\n{activity}"
     )
     server_dir = b.ensure_server_dir(guild_id)
-    env = dict(os.environ, MOCHI_CURRENT_GUILD=str(guild_id),
+    env = dict(os.environ, AGENT_CURRENT_GUILD=str(guild_id),
                CLAUDE_CONFIG_DIR=os.path.join(server_dir, ".claude"),
                TMPDIR=os.path.join(server_dir, "tmp"))
     cmd = [b.CLAUDE_BIN, "-p", "--permission-mode", "dontAsk",

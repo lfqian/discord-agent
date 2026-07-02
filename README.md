@@ -1,4 +1,4 @@
-# discord-agent (Mochi_Bot)
+# discord-agent (CowBot)
 
 A self-hosted Discord agent that bridges Discord mentions to the Claude Code CLI.
 Mention the bot in any channel or forum thread and it answers — with real shell,

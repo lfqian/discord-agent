@@ -49,8 +49,8 @@ RUN echo 'agent ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/agent \
 
 # Default git identity (for commits/PRs) and trust the bind-mounted /app even
 # though its files are owned by the host uid.
-RUN git config --system user.name "Mochi_Bot" \
-    && git config --system user.email "mochi-bot@users.noreply.github.com" \
+RUN git config --system user.name "CowBot" \
+    && git config --system user.email "cowbot@users.noreply.github.com" \
     && git config --system safe.directory '*'
 
 # Python runtime lives in src/; CLAUDE.md stays at the repo root (claude's cwd).

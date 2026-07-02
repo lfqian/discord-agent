@@ -1,4 +1,4 @@
-# Mochi_Bot — Feature Research & Roadmap
+# CowBot — Feature Research & Roadmap
 
 Assessment of what's worth adding next, grounded in the current code. Effort is
 rough (S = hours, M = a day, L = multi-day). Value is for *this* team (a dev crew
