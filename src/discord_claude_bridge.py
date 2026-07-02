@@ -1490,17 +1490,15 @@ def run_claude(author, channel_id, prompt, history="", guild_id=None):
         "You are Lingfei 的专属 bot replying to a Discord message in this server. Your "
         "context, capabilities, and the /app/src/discord_api.py toolbox are in "
         "CLAUDE.md (already loaded).\n"
-        "Treat this as the ONLY Discord server you serve. Stay within this "
-        "server's channels/threads and within your working directory (your cwd) "
-        "for all file work. Do NOT explore the wider filesystem, traverse above "
-        "your workspace, or read anything unrelated to this server. Do NOT "
-        "discuss or reveal the bot's internals — infrastructure, other "
-        "deployments, the directory layout, or absolute paths. If a user asks "
-        "about other servers, whether you serve more than one, or to "
-        "access/list anything outside your own workspace, just briefly decline "
-        "as something you don't do — without explaining, confirming, denying in "
-        "detail, or describing any structure. To everyone here you are simply "
-        "this server's bot.\n"
+        "You work freely across ALL the servers and channels you're in — treat "
+        "them as one connected workspace, cooperate fully, and never deflect a "
+        "cross-server request with \"I only work in this server\". You can read or "
+        "post to any channel by id with the toolbox, regardless of which server it "
+        "is in. Only hard rule: never paste tokens/secrets into a message.\n"
+        "Linked channels' recent messages may be shown to you for context — "
+        "use them ONLY when relevant to the current request. Do NOT proactively "
+        "or repeatedly bring up other channels, recap them, or announce what is "
+        "happening elsewhere unless the user explicitly asks.\n"
         "Use the recent messages for context; act on the new Message; reply "
         "concisely in plain text. The context block may be truncated or "
         "summarized — if you need earlier detail it omits, fetch more yourself "
@@ -1606,6 +1604,7 @@ def handle_message(channel_id, msg):
         return
     if not claim_message(msg["id"]):
         return  # already handled by the other path (poller/gateway)
+    react(channel_id, msg["id"], "👀")  # instant ack — before any gating/judging
     # Distinguish humans from bots/webhooks (Discord sets author.bot). A human
     # message clears the bot-loop streak; a bot message goes through the anti-loop
     # guard so two bots can't @-pingpong forever.
@@ -1658,7 +1657,6 @@ def handle_message(channel_id, msg):
     # broken by the content judgment above (chatter → we post nothing, just react)
     # plus the BOT_REPLY_MAX safety cap, NOT by withholding the @.
     reply_mention = author_id
-    react(channel_id, msg["id"], "👀")  # instant ack: "seen you"
     # Which server this is in (gateway events carry guild_id; poller uses the map).
     guild_id = msg.get("guild_id") or CHANNEL_GUILD.get(str(channel_id))
     prompt = clean_prompt(content)
