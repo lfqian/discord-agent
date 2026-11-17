@@ -157,8 +157,21 @@ def cmd_spawn(a):
     return 0
 
 
+SUPERVISED_ONLY_CHANNELS = {"1516845719955439636"}  # #moe (Annulus): Manager 11-16/11-17
+
+
 def cmd_claude(a):
     """Spawn a sub-agent that is itself a headless claude -p run."""
+    # #moe workers must run under work/sworker.sh, which enforces HARD RULE #1c
+    # (no "waiting for notification" exit) + STATE DONE/BLOCKED. Bare claude
+    # workers bypassed it 4x on 11-16/17 (pr229, lbimport, dropss, ...).
+    if a.channel in SUPERVISED_ONLY_CHANNELS:
+        print(f"refused: channel {a.channel} requires supervised workers. Use\n"
+              f"  subagent.py spawn {a.name} \"bash <chan>/work/sworker.sh "
+              f"{a.name} <task.md> <STATE.md> <wt|-> <lock>\" --channel {a.channel} --report\n"
+              "(#moe is Annulus-only; run non-Annulus one-offs in another channel).",
+              file=sys.stderr)
+        return 2
     bin_ = os.environ.get("CLAUDE_BIN", "claude")
     parts = [bin_, "-p", "--permission-mode",
              os.environ.get("CLAUDE_PERMISSION_MODE", "bypassPermissions")]
