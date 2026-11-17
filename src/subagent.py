@@ -165,25 +165,13 @@ def cmd_claude(a):
     # #moe workers must run under work/sworker.sh, which enforces HARD RULE #1c
     # (no "waiting for notification" exit) + STATE DONE/BLOCKED. Bare claude
     # workers bypassed it 4x on 11-16/17 (pr229, lbimport, dropss, ...).
-    if (a.channel in SUPERVISED_ONLY_CHANNELS
-            and os.environ.get("ANNULUS_ALLOW_BARE_CLAUDE") != "1"):
+    if a.channel in SUPERVISED_ONLY_CHANNELS:
         print(f"refused: channel {a.channel} requires supervised workers. Use\n"
               f"  subagent.py spawn {a.name} \"bash <chan>/work/sworker.sh "
               f"{a.name} <task.md> <STATE.md> <wt|-> <lock>\" --channel {a.channel} --report\n"
-              "(set ANNULUS_ALLOW_BARE_CLAUDE=1 only for a non-Annulus one-off).",
+              "(#moe is Annulus-only; run non-Annulus one-offs in another channel).",
               file=sys.stderr)
         return 2
-    if a.channel in SUPERVISED_ONLY_CHANNELS:
-        # Override used: never silent — announce it in the channel with the worker name.
-        msg = (f"⚠️ ANNULUS_ALLOW_BARE_CLAUDE=1: bare claude worker `{a.name}` started in "
-               f"#moe WITHOUT sworker.sh (no #1c / DONE-BLOCKED supervision).")
-        print(msg, file=sys.stderr)
-        r = subprocess.run([sys.executable, os.path.join(ROOT, "discord_api.py"), "post",
-                            str(a.channel), msg], capture_output=True, text=True)
-        if r.returncode != 0:
-            print(f"refused: could not post override notice ({r.stderr.strip()[:200]})",
-                  file=sys.stderr)
-            return 2
     bin_ = os.environ.get("CLAUDE_BIN", "claude")
     parts = [bin_, "-p", "--permission-mode",
              os.environ.get("CLAUDE_PERMISSION_MODE", "bypassPermissions")]
