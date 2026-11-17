@@ -173,6 +173,17 @@ def cmd_claude(a):
               "(set ANNULUS_ALLOW_BARE_CLAUDE=1 only for a non-Annulus one-off).",
               file=sys.stderr)
         return 2
+    if a.channel in SUPERVISED_ONLY_CHANNELS:
+        # Override used: never silent — announce it in the channel with the worker name.
+        msg = (f"⚠️ ANNULUS_ALLOW_BARE_CLAUDE=1: bare claude worker `{a.name}` started in "
+               f"#moe WITHOUT sworker.sh (no #1c / DONE-BLOCKED supervision).")
+        print(msg, file=sys.stderr)
+        r = subprocess.run([sys.executable, os.path.join(ROOT, "discord_api.py"), "post",
+                            str(a.channel), msg], capture_output=True, text=True)
+        if r.returncode != 0:
+            print(f"refused: could not post override notice ({r.stderr.strip()[:200]})",
+                  file=sys.stderr)
+            return 2
     bin_ = os.environ.get("CLAUDE_BIN", "claude")
     parts = [bin_, "-p", "--permission-mode",
              os.environ.get("CLAUDE_PERMISSION_MODE", "bypassPermissions")]
